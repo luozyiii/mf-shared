@@ -1,10 +1,10 @@
+import { decryptObject, encryptObject } from './encryption';
 import type {
-  StoreData,
-  StoreSubscriber,
-  StoreOptions,
   GlobalStoreInterface,
+  StoreData,
+  StoreOptions,
+  StoreSubscriber,
 } from './types';
-import { encryptObject, decryptObject } from './encryption';
 
 /**
  * 全局存储类 - 支持跨微前端应用的数据存储和通信
@@ -148,7 +148,12 @@ class GlobalStore implements GlobalStoreInterface {
   /**
    * 通知订阅者
    */
-  private notifySubscribers(key: string, newValue: any, oldValue: any, immediateCallback?: StoreSubscriber): void {
+  private notifySubscribers(
+    key: string,
+    newValue: any,
+    oldValue: any,
+    immediateCallback?: StoreSubscriber
+  ): void {
     // 先执行立即回调（如果提供）
     if (immediateCallback) {
       try {

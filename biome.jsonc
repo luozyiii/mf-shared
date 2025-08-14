@@ -10,7 +10,7 @@
     "rules": {
       "recommended": true,
       "style": {
-        "useImportType": "warn"
+        "useImportType": "off"
       },
       "suspicious": {
         "noArrayIndexKey": "off",

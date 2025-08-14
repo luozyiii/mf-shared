@@ -1,0 +1,2 @@
+npm run code-quality
+npx lint-staged
