@@ -1,0 +1,57 @@
+{
+  "name": "mf-shared",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rsbuild build",
+    "build:storybook": "storybook build",
+    "dev": "rsbuild dev",
+    "storybook": "storybook dev -p 6006",
+    "mf-dev": "rsbuild dev",
+    "lint": "biome lint src/",
+    "lint:fix": "biome check --write src/",
+    "format": "biome format --write src/",
+    "format:check": "biome format src/",
+    "type-check": "tsc --noEmit",
+    "code-quality": "npm run lint && npm run format:check && npm run type-check"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@rsbuild/core": "^1.3.22",
+    "@rsbuild/plugin-react": "^1.3.1",
+    "@rslib/core": ">=0.9.0",
+    "@storybook/addon-essentials": "^8.4.7",
+    "@storybook/addon-interactions": "^8.4.7",
+    "@storybook/addon-links": "^8.4.7",
+    "@storybook/addon-onboarding": "^8.4.7",
+    "@storybook/blocks": "^8.4.7",
+    "@storybook/react": "^8.4.7",
+    "@storybook/test": "^8.4.7",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "~18.3.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "storybook": "^8.4.7",
+    "storybook-addon-rslib": "^1.0.1",
+    "storybook-react-rsbuild": "^1.0.1",
+    "typescript": "^5.7.3",
+    "@types/node": "^22.13.9",
+    "@module-federation/rsbuild-plugin":"^0.18.1",
+    "@module-federation/storybook-addon":"^4.0.1"
+  },
+  "peerDependencies": {
+    "react": ">=16.9.0",
+    "react-dom": ">=16.9.0"
+  }
+}

@@ -1,0 +1,105 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  padding: 10vh;
+  background: linear-gradient(45deg, #3a65f2, #6a5acd, #8a2be2, #023cfc);
+  background-size: 400% 400%;
+  animation: gradientFlow 6s ease infinite;
+}
+
+.icon-container {
+  width: 180px;
+  margin-bottom: 20px;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.logo-image {
+  width: 100%;
+  transition: opacity 0.3s ease;
+}
+
+.title {
+  font-size: 3rem;
+  color: #fff;
+  margin-bottom: 20px;
+  animation: fadeInUp 1s ease-out;
+  text-align: center;
+}
+
+.description {
+  max-width: 600px;
+  color: #fff;
+  text-align: center;
+  animation: fadeInUp 1s ease-out 0.3s both;
+}
+
+.description p {
+  font-size: 1.2rem;
+  margin-bottom: 15px;
+  line-height: 1.6;
+}
+
+.description ul {
+  text-align: left;
+  margin: 20px 0;
+  padding: 0 20px;
+}
+
+.description li {
+  font-size: 1.1rem;
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.links {
+  margin-top: 30px;
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.links a {
+  color: #fff;
+  text-decoration: none;
+  padding: 12px 24px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 25px;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.links a:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.6);
+  transform: translateY(-2px);
+}
+
+@keyframes gradientFlow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
