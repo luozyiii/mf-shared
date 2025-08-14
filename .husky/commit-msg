@@ -1,16 +1,5 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-# 验证提交信息格式 (type: description)
-commit_regex='^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: .{1,50}'
-
-if ! grep -qE "$commit_regex" "$1"; then
-  echo "❌ 提交信息格式不正确!"
-  echo "格式应为: type(scope): description"
-  echo "类型: feat, fix, docs, style, refactor, test, chore, perf, ci, build, revert"
-  echo "示例: feat: 添加新功能"
-  echo "示例: fix(store): 修复数据存储问题"
-  exit 1
-fi
-
-echo "✅ 提交信息格式正确"
+# 使用 commitlint 验证提交信息格式
+npx --no-install commitlint --edit "$1"
