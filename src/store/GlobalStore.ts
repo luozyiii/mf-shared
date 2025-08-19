@@ -1,6 +1,7 @@
-import { decryptObject, encryptObject } from './encryption';
+import { decryptObject, encryptObject } from '../utils/encryption';
 import type {
   GlobalStoreInterface,
+  StorageStrategy,
   StoreData,
   StoreOptions,
   StoreSubscriber,
@@ -15,9 +16,69 @@ class GlobalStore implements GlobalStoreInterface {
   private options: StoreOptions = {
     enablePersistence: true,
     enableEncryption: true,
-    storageKey: 'mf-global-store',
+    storageKey: 'mf-shell-store',
   };
   private isInitialized = false;
+
+  // 新增：按 key 或前缀的存储策略
+  private strategies: Map<string, StorageStrategy> = new Map();
+
+  // 新增：跨 Tab 同步（尽量复用原 localStorage 聚合存储），同时用 BroadcastChannel 提升可靠性
+  private channel: BroadcastChannel | null = null;
+
+  private makeItemKey(key: string): string {
+    return `${this.options.storageKey || 'mf-shell-store'}:${key}`;
+  }
+
+  private findStrategyFor(key: string): StorageStrategy | undefined {
+    // 最长前缀匹配
+    let bestPrefix = '';
+    let bestStrategy: StorageStrategy | undefined = undefined;
+    this.strategies.forEach((strategy, prefix) => {
+      if (key.startsWith(prefix) && prefix.length > bestPrefix.length) {
+        bestPrefix = prefix;
+        bestStrategy = strategy;
+      }
+    });
+    return bestStrategy;
+  }
+
+  private persistPerKey(key: string, value: any): void {
+    const strategy = this.findStrategyFor(key);
+    if (!strategy || strategy.medium === 'memory') return;
+
+    try {
+      const itemKey = this.makeItemKey(key);
+      const serialized = strategy.encrypted
+        ? encryptObject(value)
+        : JSON.stringify(value);
+      if (strategy.medium === 'local') {
+        localStorage.setItem(itemKey, serialized);
+      } else if (strategy.medium === 'session') {
+        sessionStorage.setItem(itemKey, serialized);
+      }
+    } catch (e) {
+      console.warn('persistPerKey failed:', e);
+    }
+  }
+
+  private loadPerKey(key: string): any | undefined {
+    const strategy = this.findStrategyFor(key);
+    if (!strategy || strategy.medium === 'memory') return undefined;
+    try {
+      const itemKey = this.makeItemKey(key);
+      const raw =
+        strategy.medium === 'local'
+          ? localStorage.getItem(itemKey)
+          : sessionStorage.getItem(itemKey);
+      if (!raw) return undefined;
+      const obj = strategy.encrypted ? decryptObject(raw) : JSON.parse(raw);
+      return obj;
+    } catch (e) {
+      console.warn('loadPerKey failed:', e);
+      return undefined;
+    }
+  }
 
   /**
    * 初始化存储
@@ -32,6 +93,78 @@ class GlobalStore implements GlobalStoreInterface {
     this.loadFromStorage();
     this.isInitialized = true;
 
+    // 初始化跨 Tab 同步通道
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        this.channel = new BroadcastChannel(
+          this.options.storageKey || 'mf-shell-store'
+        );
+        this.channel.onmessage = (ev: MessageEvent) => {
+          const msg = ev.data as {
+            type: string;
+            key?: string;
+            value?: any;
+            prefix?: string;
+          } & { type: 'set' | 'clearByPrefix' };
+          if (msg?.type === 'set' && msg.key) {
+            // 合并来自其他 Tab 的更新
+            const oldValue = this.get(msg.key);
+            this.setNestedValue(this.data, msg.key, msg.value);
+            // 聚合持久化
+            if (this.options.enablePersistence) {
+              this.saveToStorage();
+            }
+            // 通知本地订阅者（标记为远端来源，无需再广播）
+            this.notifySubscribers(msg.key, msg.value, oldValue);
+          } else if (msg?.type === 'clearByPrefix' && msg.prefix) {
+            // 清理指定前缀的数据
+            const keys = Object.keys(this.data);
+            for (const k of keys) {
+              if (k.startsWith(msg.prefix as string)) {
+                delete (this.data as any)[k];
+              }
+            }
+            if (this.options.enablePersistence) this.saveToStorage();
+            // 广播已由源Tab完成，这里只需本地通知
+            const subs = this.subscribers.get(msg.prefix);
+            if (subs) {
+              for (const cb of Array.from(subs)) {
+                try {
+                  cb(msg.prefix as string, undefined, undefined);
+                } catch {}
+              }
+            }
+          }
+        };
+      }
+
+      // storage 事件降级：当其他 Tab 写入聚合存储键时，合并数据
+      if (typeof window !== 'undefined') {
+        window.addEventListener('storage', (e: StorageEvent) => {
+          if (!e.key || e.key !== (this.options.storageKey || 'mf-shell-store'))
+            return;
+          try {
+            const incoming = this.options.enableEncryption
+              ? decryptObject(e.newValue || '')
+              : JSON.parse(e.newValue || '{}');
+            if (incoming && typeof incoming === 'object') {
+              this.data = incoming;
+              // 通知顶层订阅者（粗粒度），避免逐个键比对
+              this.subscribers.forEach((subs, key) => {
+                for (const cb of Array.from(subs)) {
+                  try {
+                    cb(key, this.get(key), undefined);
+                  } catch {}
+                }
+              });
+            }
+          } catch {}
+        });
+      }
+    } catch (e) {
+      console.warn('BroadcastChannel/storage init failed:', e);
+    }
+
     console.log('GlobalStore initialized with options:', this.options);
   }
 
@@ -44,7 +177,20 @@ class GlobalStore implements GlobalStoreInterface {
       return undefined;
     }
 
-    return this.getNestedValue(this.data, key) as T;
+    // 先从内存读取
+    const val = this.getNestedValue(this.data, key) as T | undefined;
+    if (val !== undefined) return val;
+
+    // 再尝试从按键持久化中加载
+    const loaded = this.loadPerKey(key);
+    if (loaded !== undefined) {
+      this.setNestedValue(this.data, key, loaded);
+      // 聚合持久化（仅在开启时）
+      if (this.options.enablePersistence) this.saveToStorage();
+      return loaded as T;
+    }
+
+    return undefined;
   }
 
   /**
@@ -59,10 +205,18 @@ class GlobalStore implements GlobalStoreInterface {
     const oldValue = this.get(key);
     this.setNestedValue(this.data, key, value);
 
-    // 持久化到 localStorage
+    // 细粒度持久化（按策略）
+    this.persistPerKey(key, value);
+
+    // 持久化到 localStorage（聚合，兼容旧行为）
     if (this.options.enablePersistence) {
       this.saveToStorage();
     }
+
+    // 通过 BroadcastChannel 通知其他 Tab
+    try {
+      this.channel?.postMessage({ type: 'set', key, value });
+    } catch {}
 
     // 通知订阅者（包括传入的回调）
     this.notifySubscribers(key, value, oldValue, callback);
@@ -112,6 +266,11 @@ class GlobalStore implements GlobalStoreInterface {
     this.data = {};
     this.subscribers.clear();
     this.isInitialized = false;
+
+    try {
+      this.channel?.close();
+    } catch {}
+    this.channel = null;
 
     if (this.options.enablePersistence && this.options.storageKey) {
       localStorage.removeItem(this.options.storageKey);
@@ -234,6 +393,59 @@ class GlobalStore implements GlobalStoreInterface {
       localStorage.setItem(this.options.storageKey, dataToStore);
     } catch (error) {
       console.error('Failed to save data to storage:', error);
+    }
+  }
+
+  // 新增：为指定 key 或前缀配置存储策略
+  configureStrategy(keyOrPrefix: string, strategy: StorageStrategy): void {
+    this.strategies.set(keyOrPrefix, strategy);
+  }
+
+  // 新增：按前缀清理（仅内存 + 各种持久化容器）
+  clearByPrefix(prefix: string): void {
+    // 1) 清内存
+    for (const k of Object.keys(this.data)) {
+      if (k.startsWith(prefix)) {
+        delete (this.data as any)[k];
+      }
+    }
+
+    // 2) 聚合持久化（保持与旧实现兼容）
+    if (this.options.enablePersistence) {
+      this.saveToStorage();
+    }
+
+    // 3) 发送跨 Tab 通知
+    try {
+      this.channel?.postMessage({ type: 'clearByPrefix', prefix });
+    } catch {}
+
+    // 4) 通知订阅者（按粗粒度通知前缀本身和一级子键）
+    const affectedKeys = new Set<string>();
+    for (const k of Object.keys(this.data)) {
+      if (k.startsWith(prefix)) affectedKeys.add(k);
+    }
+    if (affectedKeys.size === 0) {
+      // 尝试通知顶层 prefix 订阅者
+      const subs = this.subscribers.get(prefix);
+      if (subs) {
+        for (const cb of Array.from(subs)) {
+          try {
+            cb(prefix, undefined, undefined);
+          } catch {}
+        }
+      }
+    } else {
+      for (const k of Array.from(affectedKeys)) {
+        const subs = this.subscribers.get(k);
+        if (subs) {
+          for (const cb of Array.from(subs)) {
+            try {
+              cb(k, undefined, undefined);
+            } catch {}
+          }
+        }
+      }
     }
   }
 }

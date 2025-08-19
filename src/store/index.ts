@@ -1,5 +1,5 @@
 import GlobalStore from './GlobalStore';
-import type { StoreOptions, StoreSubscriber } from './types';
+import type { StorageStrategy, StoreOptions, StoreSubscriber } from './types';
 
 // 创建全局单例实例
 let globalStoreInstance: GlobalStore | null = null;
@@ -26,6 +26,27 @@ function getGlobalStore(): GlobalStore {
 export function initGlobalStore(options?: StoreOptions): void {
   const store = getGlobalStore();
   store.init(options);
+}
+
+/** 配置存储策略（按 key 或前缀） */
+export function configureStoreStrategy(
+  keyOrPrefix: string,
+  strategy: StorageStrategy
+): void {
+  const store =
+    typeof window !== 'undefined' && (window as any).globalStore
+      ? (window as any).globalStore
+      : getGlobalStore();
+  store.configureStrategy(keyOrPrefix, strategy);
+}
+
+/** 按前缀清理数据 */
+export function clearStoreByPrefix(prefix: string): void {
+  const store =
+    typeof window !== 'undefined' && (window as any).globalStore
+      ? (window as any).globalStore
+      : getGlobalStore();
+  store.clearByPrefix(prefix);
 }
 
 /**
@@ -132,4 +153,6 @@ export default {
   unsubscribe: unsubscribeStore,
   clear: clearStore,
   useValue: useStoreValue,
+  configureStrategy: configureStoreStrategy,
+  clearByPrefix: clearStoreByPrefix,
 };
