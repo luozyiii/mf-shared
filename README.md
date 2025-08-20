@@ -1,20 +1,20 @@
-# MF-Shared - 微前端共享模块
+# MF-Shared
 
 [![Deploy to GitHub Pages](https://github.com/luozyiii/micro-frontend-app/actions/workflows/deploy-mf-shared.yml/badge.svg)](https://github.com/luozyiii/micro-frontend-app/actions/workflows/deploy-mf-shared.yml)
 [![Live Demo](https://img.shields.io/badge/Live-Demo-brightgreen)](https://luozyiii.github.io/mf-shared/)
 
-一个基于 Module Federation 2.0 的微前端共享模块，提供全局状态管理、数据加密存储、跨应用数据同步等功能。
+微前端共享模块，基于 Module Federation 2.0 提供跨应用状态管理和数据存储。
 
-## ✨ 功能特性
+## 功能特性
 
-- 🗄️ **全局状态管理** - 跨微前端应用的统一状态管理
-- 🔐 **数据加密存储** - 支持敏感数据的加密存储
-- 💾 **本地持久化** - 自动保存状态到本地存储
-- 🔄 **跨应用数据同步** - 实时同步不同应用间的数据变化
-- 📡 **事件订阅机制** - 灵活的数据变化监听和响应
-- 🚀 **Module Federation 2.0** - 基于最新的模块联邦技术
+- **全局状态管理** - 跨微前端应用的统一状态存储
+- **数据加密存储** - 支持敏感数据的 XOR 加密存储
+- **多存储策略** - 支持 localStorage、sessionStorage、内存存储
+- **跨应用同步** - 基于 BroadcastChannel 的实时数据同步
+- **事件订阅** - 灵活的数据变化监听机制
+- **细粒度控制** - 按 key 前缀配置不同存储策略
 
-## 🚀 快速开始
+## 快速开始
 
 ### 安装依赖
 
@@ -28,41 +28,20 @@ pnpm install
 pnpm run dev
 ```
 
-访问 http://localhost:2999 查看演示页面
+访问 http://localhost:2999
 
-### 构建生产版本
+### 构建
 
 ```bash
 pnpm run build
 ```
 
-### 代码检查和格式化
+## 使用方式
 
-```bash
-# 检查代码
-pnpm run check
-
-# 自动修复
-pnpm run check:fix
-
-# 格式化代码
-pnpm run format:fix
-```
-
-## 📦 模块暴露
-
-该共享模块通过 Module Federation 暴露以下模块：
-
-- `mf-shared` - 主模块，包含 React 组件
-- `mf-shared/store` - 全局状态管理模块
-
-## 🔧 使用方式
-
-### 在其他微前端应用中使用
+### 在主应用中初始化
 
 ```typescript
-// 动态导入存储模块
-const { initGlobalStore, setStoreValue, getStoreValue, subscribeStore } = await import('mf-shared/store');
+import { initGlobalStore } from 'mfShared/store';
 
 // 初始化全局存储
 initGlobalStore({
@@ -70,61 +49,129 @@ initGlobalStore({
   enableEncryption: true,
   storageKey: 'my-app-store'
 });
+```
 
-// 设置数据
-setStoreValue('userInfo', { name: '张三', role: 'admin' });
+### 基本操作
 
-// 获取数据
-const userInfo = getStoreValue('userInfo');
+```typescript
+import { getStoreValue, setStoreValue, subscribeStore } from 'mfShared/store';
 
-// 订阅数据变化
-const unsubscribe = subscribeStore('userInfo', (key, newVal, oldVal) => {
-  console.log(`${key} 数据变化:`, { newVal, oldVal });
+// 设置值
+setStoreValue('user.name', 'John');
+
+// 获取值
+const userName = getStoreValue('user.name');
+
+// 订阅变化
+const unsubscribe = subscribeStore('user.name', (key, newValue, oldValue) => {
+  console.log(`${key} changed from ${oldValue} to ${newValue}`);
 });
 ```
 
-## 🏗️ 技术栈
+### 配置存储策略
 
-- **React 18** - 用户界面库
-- **TypeScript** - 类型安全的 JavaScript
-- **Rsbuild** - 现代化的构建工具
+```typescript
+import { configureStoreStrategy } from 'mfShared/store';
+
+// 用户数据使用加密的 localStorage
+configureStoreStrategy('user.', {
+  medium: 'local',
+  encrypted: true
+});
+
+// 临时数据使用 sessionStorage
+configureStoreStrategy('temp.', {
+  medium: 'session',
+  encrypted: false
+});
+
+// 缓存数据仅存储在内存
+configureStoreStrategy('cache.', {
+  medium: 'memory'
+});
+```
+
+### React Hook
+
+```typescript
+import { useStoreValue } from 'mfShared/store';
+
+function UserProfile() {
+  const [userName, setUserName] = useStoreValue('user.name');
+  
+  return (
+    <input 
+      value={userName || ''} 
+      onChange={(e) => setUserName(e.target.value)}
+    />
+  );
+}
+```
+
+## Module Federation 配置
+
+### 暴露的模块
+
+- `'.'` - 主入口组件
+- `'./store'` - 全局状态管理
+
+### 在其他应用中使用
+
+```typescript
+// module-federation.config.ts
+export default createModuleFederationConfig({
+  name: 'myApp',
+  remotes: {
+    mfShared: 'mfShared@http://localhost:2999/remoteEntry.js'
+  }
+});
+```
+
+## API 参考
+
+### 核心方法
+
+- `initGlobalStore(options?)` - 初始化全局存储
+- `getStoreValue<T>(key)` - 获取存储值
+- `setStoreValue(key, value, callback?)` - 设置存储值
+- `subscribeStore(key, callback)` - 订阅数据变化
+- `unsubscribeStore(key, callback)` - 取消订阅
+- `clearStore()` - 清空所有数据
+- `clearAppData(appStorageKey)` - 清理应用数据
+
+### 高级功能
+
+- `configureStoreStrategy(keyOrPrefix, strategy)` - 配置存储策略
+- `clearStoreByPrefix(prefix)` - 按前缀清理数据
+- `useStoreValue<T>(key)` - React Hook
+
+## 开发命令
+
+```bash
+# 开发模式
+pnpm run dev
+
+# 构建
+pnpm run build
+
+# 代码检查
+pnpm run lint
+
+# 格式化代码
+pnpm run format
+
+# 类型检查
+pnpm run type-check
+
+# Storybook
+pnpm run storybook
+```
+
+## 技术栈
+
 - **Module Federation 2.0** - 微前端架构
+- **React 18** - UI 框架
+- **TypeScript** - 类型安全
+- **Rsbuild** - 构建工具
 - **Biome** - 代码检查和格式化
-
-## 📚 相关项目
-
-- [MF-Shell](https://github.com/luozyiii/micro-frontend-app/tree/main/mf-shell) - 主应用
-- [MF-Template](https://github.com/luozyiii/micro-frontend-app/tree/main/mf-template) - 子应用模板
-
-## 🌐 在线演示
-
-- [MF-Shared 演示](https://luozyiii.github.io/mf-shared/) - 共享模块演示
-- [主应用演示](https://luozyiii.github.io/mf-shell/) - 完整的微前端应用
-
-## 📄 许可证
-
-MIT License
-
-### Command
-
-Build package
-
-```
-pnpm build
-```
-
-Dev package
-
-1. 
-
-```
-pnpm mf-dev
-```
-
-2.
-
-```
-pnpm storybook
-```
-
-visit http://localhost:6006
+- **Storybook** - 组件文档
