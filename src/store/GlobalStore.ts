@@ -49,6 +49,17 @@ class GlobalStore implements GlobalStoreInterface {
 
     try {
       const itemKey = this.makeItemKey(key);
+
+      // 如果值是 undefined，删除持久化存储
+      if (value === undefined) {
+        if (strategy.medium === 'local') {
+          localStorage.removeItem(itemKey);
+        } else if (strategy.medium === 'session') {
+          sessionStorage.removeItem(itemKey);
+        }
+        return;
+      }
+
       const serialized = strategy.encrypted
         ? encryptObject(value)
         : JSON.stringify(value);
@@ -105,7 +116,8 @@ class GlobalStore implements GlobalStoreInterface {
             key?: string;
             value?: any;
             prefix?: string;
-          } & { type: 'set' | 'clearByPrefix' };
+            appStorageKey?: string;
+          } & { type: 'set' | 'clearByPrefix' | 'clearAppData' };
           if (msg?.type === 'set' && msg.key) {
             // 合并来自其他 Tab 的更新
             const oldValue = this.get(msg.key);
@@ -134,6 +146,16 @@ class GlobalStore implements GlobalStoreInterface {
                 } catch {}
               }
             }
+          } else if (msg?.type === 'clearAppData' && msg.appStorageKey) {
+            // 清理应用数据（来自其他 Tab）
+            this.data = {};
+            if (this.options.enablePersistence) {
+              this.saveToStorage();
+            }
+            // 通知所有订阅者
+            this.subscribers.forEach((_, key) => {
+              this.notifySubscribers(key, undefined, undefined);
+            });
           }
         };
       }
@@ -301,7 +323,12 @@ class GlobalStore implements GlobalStoreInterface {
       return current[key];
     }, obj);
 
-    target[lastKey] = value;
+    // 如果值是 undefined，删除该键
+    if (value === undefined) {
+      delete target[lastKey];
+    } else {
+      target[lastKey] = value;
+    }
   }
 
   /**
@@ -446,6 +473,58 @@ class GlobalStore implements GlobalStoreInterface {
           }
         }
       }
+    }
+  }
+
+  /**
+   * 清理特定应用的所有数据
+   * @param appStorageKey 应用的存储键名，如 'mf-shell-store', 'mf-template-store'
+   */
+  clearAppData(appStorageKey: string): void {
+    try {
+      // 1) 清理内存中的所有数据
+      this.data = {};
+
+      // 2) 清理聚合持久化存储
+      if (this.options.enablePersistence) {
+        localStorage.removeItem(appStorageKey);
+        this.saveToStorage(); // 保存空数据
+      }
+
+      // 3) 清理细粒度持久化存储（localStorage 和 sessionStorage）
+      const storagePrefix = `${appStorageKey}:`;
+
+      // 清理 localStorage
+      const localKeys = Object.keys(localStorage);
+      for (const key of localKeys) {
+        if (key.startsWith(storagePrefix)) {
+          try {
+            localStorage.removeItem(key);
+          } catch {}
+        }
+      }
+
+      // 清理 sessionStorage
+      const sessionKeys = Object.keys(sessionStorage);
+      for (const key of sessionKeys) {
+        if (key.startsWith(storagePrefix)) {
+          try {
+            sessionStorage.removeItem(key);
+          } catch {}
+        }
+      }
+
+      // 4) 发送跨 Tab 通知
+      try {
+        this.channel?.postMessage({ type: 'clearAppData', appStorageKey });
+      } catch {}
+
+      // 5) 通知所有订阅者数据已清空
+      this.subscribers.forEach((_, key) => {
+        this.notifySubscribers(key, undefined, undefined);
+      });
+    } catch (error) {
+      console.warn('Failed to clear app data:', error);
     }
   }
 }

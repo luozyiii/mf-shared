@@ -49,6 +49,15 @@ export function clearStoreByPrefix(prefix: string): void {
   store.clearByPrefix(prefix);
 }
 
+/** 清理特定应用的所有数据 */
+export function clearAppData(appStorageKey: string): void {
+  const store =
+    typeof window !== 'undefined' && (window as any).globalStore
+      ? (window as any).globalStore
+      : getGlobalStore();
+  store.clearAppData(appStorageKey);
+}
+
 /**
  * 获取存储的值
  * 支持嵌套路径，如 'userinfo.name'
@@ -155,4 +164,5 @@ export default {
   useValue: useStoreValue,
   configureStrategy: configureStoreStrategy,
   clearByPrefix: clearStoreByPrefix,
+  clearAppData: clearAppData,
 };
