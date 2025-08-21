@@ -40,15 +40,6 @@ export function configureStoreStrategy(
   store.configureStrategy(keyOrPrefix, strategy);
 }
 
-/** 按前缀清理数据 */
-export function clearStoreByPrefix(prefix: string): void {
-  const store =
-    typeof window !== 'undefined' && (window as any).globalStore
-      ? (window as any).globalStore
-      : getGlobalStore();
-  store.clearByPrefix(prefix);
-}
-
 /** 清理特定应用的所有数据 */
 export function clearAppData(appStorageKey: string): void {
   const store =
@@ -163,6 +154,5 @@ export default {
   clear: clearStore,
   useValue: useStoreValue,
   configureStrategy: configureStoreStrategy,
-  clearByPrefix: clearStoreByPrefix,
   clearAppData: clearAppData,
 };

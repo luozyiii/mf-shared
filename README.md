@@ -142,7 +142,6 @@ export default createModuleFederationConfig({
 ### 高级功能
 
 - `configureStoreStrategy(keyOrPrefix, strategy)` - 配置存储策略
-- `clearStoreByPrefix(prefix)` - 按前缀清理数据
 - `useStoreValue<T>(key)` - React Hook
 
 ## 开发命令

@@ -36,5 +36,4 @@ export interface GlobalStoreInterface {
 
   // 新增能力
   configureStrategy(keyOrPrefix: string, strategy: StorageStrategy): void;
-  clearByPrefix(prefix: string): void;
 }

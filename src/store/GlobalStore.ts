@@ -117,7 +117,7 @@ class GlobalStore implements GlobalStoreInterface {
             value?: any;
             prefix?: string;
             appStorageKey?: string;
-          } & { type: 'set' | 'clearByPrefix' | 'clearAppData' };
+          } & { type: 'set' | 'clearAppData' };
           if (msg?.type === 'set' && msg.key) {
             // 合并来自其他 Tab 的更新
             const oldValue = this.get(msg.key);
@@ -128,34 +128,22 @@ class GlobalStore implements GlobalStoreInterface {
             }
             // 通知本地订阅者（标记为远端来源，无需再广播）
             this.notifySubscribers(msg.key, msg.value, oldValue);
-          } else if (msg?.type === 'clearByPrefix' && msg.prefix) {
-            // 清理指定前缀的数据
-            const keys = Object.keys(this.data);
-            for (const k of keys) {
-              if (k.startsWith(msg.prefix as string)) {
-                delete (this.data as any)[k];
-              }
-            }
-            if (this.options.enablePersistence) this.saveToStorage();
-            // 广播已由源Tab完成，这里只需本地通知
-            const subs = this.subscribers.get(msg.prefix);
-            if (subs) {
-              for (const cb of Array.from(subs)) {
-                try {
-                  cb(msg.prefix as string, undefined, undefined);
-                } catch {}
-              }
-            }
           } else if (msg?.type === 'clearAppData' && msg.appStorageKey) {
             // 清理应用数据（来自其他 Tab）
-            this.data = {};
-            if (this.options.enablePersistence) {
-              this.saveToStorage();
+            const isCurrentApp = msg.appStorageKey === this.options.storageKey;
+
+            if (isCurrentApp) {
+              // 只有当清理的是当前应用时，才清理内存数据和通知订阅者
+              this.data = {};
+              if (this.options.enablePersistence) {
+                this.saveToStorage();
+              }
+              // 通知所有订阅者
+              this.subscribers.forEach((_, key) => {
+                this.notifySubscribers(key, undefined, undefined);
+              });
             }
-            // 通知所有订阅者
-            this.subscribers.forEach((_, key) => {
-              this.notifySubscribers(key, undefined, undefined);
-            });
+            // 注意：localStorage 的清理已经由发送消息的 Tab 完成，这里不需要重复清理
           }
         };
       }
@@ -428,70 +416,29 @@ class GlobalStore implements GlobalStoreInterface {
     this.strategies.set(keyOrPrefix, strategy);
   }
 
-  // 新增：按前缀清理（仅内存 + 各种持久化容器）
-  clearByPrefix(prefix: string): void {
-    // 1) 清内存
-    for (const k of Object.keys(this.data)) {
-      if (k.startsWith(prefix)) {
-        delete (this.data as any)[k];
-      }
-    }
-
-    // 2) 聚合持久化（保持与旧实现兼容）
-    if (this.options.enablePersistence) {
-      this.saveToStorage();
-    }
-
-    // 3) 发送跨 Tab 通知
-    try {
-      this.channel?.postMessage({ type: 'clearByPrefix', prefix });
-    } catch {}
-
-    // 4) 通知订阅者（按粗粒度通知前缀本身和一级子键）
-    const affectedKeys = new Set<string>();
-    for (const k of Object.keys(this.data)) {
-      if (k.startsWith(prefix)) affectedKeys.add(k);
-    }
-    if (affectedKeys.size === 0) {
-      // 尝试通知顶层 prefix 订阅者
-      const subs = this.subscribers.get(prefix);
-      if (subs) {
-        for (const cb of Array.from(subs)) {
-          try {
-            cb(prefix, undefined, undefined);
-          } catch {}
-        }
-      }
-    } else {
-      for (const k of Array.from(affectedKeys)) {
-        const subs = this.subscribers.get(k);
-        if (subs) {
-          for (const cb of Array.from(subs)) {
-            try {
-              cb(k, undefined, undefined);
-            } catch {}
-          }
-        }
-      }
-    }
-  }
-
   /**
    * 清理特定应用的所有数据
    * @param appStorageKey 应用的存储键名，如 'mf-shell-store', 'mf-template-store'
    */
   clearAppData(appStorageKey: string): void {
     try {
-      // 1) 清理内存中的所有数据
-      this.data = {};
+      // 判断是否清理当前实例的数据
+      const isCurrentApp = appStorageKey === this.options.storageKey;
 
-      // 2) 清理聚合持久化存储
-      if (this.options.enablePersistence) {
-        localStorage.removeItem(appStorageKey);
-        this.saveToStorage(); // 保存空数据
+      if (isCurrentApp) {
+        // 1) 如果是当前应用，清理内存中的所有数据
+        this.data = {};
+
+        // 5) 通知所有订阅者数据已清空
+        this.subscribers.forEach((_, key) => {
+          this.notifySubscribers(key, undefined, undefined);
+        });
       }
 
-      // 3) 清理细粒度持久化存储（localStorage 和 sessionStorage）
+      // 2) 清理指定应用的聚合持久化存储（无论是否为当前应用）
+      localStorage.removeItem(appStorageKey);
+
+      // 4) 清理细粒度持久化存储（localStorage 和 sessionStorage）
       const storagePrefix = `${appStorageKey}:`;
 
       // 清理 localStorage
@@ -514,15 +461,10 @@ class GlobalStore implements GlobalStoreInterface {
         }
       }
 
-      // 4) 发送跨 Tab 通知
+      // 6) 发送跨 Tab 通知
       try {
         this.channel?.postMessage({ type: 'clearAppData', appStorageKey });
       } catch {}
-
-      // 5) 通知所有订阅者数据已清空
-      this.subscribers.forEach((_, key) => {
-        this.notifySubscribers(key, undefined, undefined);
-      });
     } catch (error) {
       console.warn('Failed to clear app data:', error);
     }
