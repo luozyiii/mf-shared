@@ -1,6 +1,6 @@
 // 加密/解密工具（迁移自 src/store/encryption.ts 到 utils）
 
-const ENCRYPTION_KEY = 'mf-store-key-2024';
+const ENCRYPTION_KEY = 'mf-store-key-2025';
 
 /**
  * 简单的字符串加密（Base64 + XOR 混淆）
