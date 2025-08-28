@@ -33,20 +33,23 @@ export function configureStoreStrategy(
   keyOrPrefix: string,
   strategy: StorageStrategy
 ): void {
-  const store =
-    typeof window !== 'undefined' && (window as any).globalStore
-      ? (window as any).globalStore
-      : getGlobalStore();
-  store.configureStrategy(keyOrPrefix, strategy);
+  getStore().configureStrategy(keyOrPrefix, strategy);
 }
 
 /** 清理特定应用的所有数据 */
 export function clearAppData(appStorageKey: string): void {
-  const store =
-    typeof window !== 'undefined' && (window as any).globalStore
-      ? (window as any).globalStore
-      : getGlobalStore();
-  store.clearAppData(appStorageKey);
+  getStore().clearAppData(appStorageKey);
+}
+
+/**
+ * 获取全局存储实例（统一入口）
+ */
+function getStore(): GlobalStore {
+  // 优先从 window.globalStore 获取（确保跨应用一致性）
+  if (typeof window !== 'undefined' && (window as any).globalStore) {
+    return (window as any).globalStore;
+  }
+  return getGlobalStore();
 }
 
 /**
@@ -54,13 +57,7 @@ export function clearAppData(appStorageKey: string): void {
  * 支持嵌套路径，如 'userinfo.name'
  */
 export function getStoreValue<T = any>(key: string): T | undefined {
-  // 优先从 window.globalStore 获取（确保跨应用一致性）
-  if (typeof window !== 'undefined' && (window as any).globalStore) {
-    return (window as any).globalStore.get(key);
-  }
-
-  const store = getGlobalStore();
-  return store.get<T>(key);
+  return getStore().get<T>(key);
 }
 
 /**
@@ -72,14 +69,7 @@ export function setStoreValue(
   value: any,
   callback?: StoreSubscriber
 ): void {
-  // 优先使用 window.globalStore（确保跨应用一致性）
-  if (typeof window !== 'undefined' && (window as any).globalStore) {
-    (window as any).globalStore.set(key, value, callback);
-    return;
-  }
-
-  const store = getGlobalStore();
-  store.set(key, value, callback);
+  getStore().set(key, value, callback);
 }
 
 /**
@@ -89,56 +79,25 @@ export function subscribeStore(
   key: string,
   callback: StoreSubscriber
 ): () => void {
-  // 优先使用 window.globalStore
-  if (typeof window !== 'undefined' && (window as any).globalStore) {
-    return (window as any).globalStore.subscribe(key, callback);
-  }
-
-  const store = getGlobalStore();
-  return store.subscribe(key, callback);
+  return getStore().subscribe(key, callback);
 }
 
 /**
  * 取消订阅
  */
 export function unsubscribeStore(key: string, callback: StoreSubscriber): void {
-  // 优先使用 window.globalStore
-  if (typeof window !== 'undefined' && (window as any).globalStore) {
-    (window as any).globalStore.unsubscribe(key, callback);
-    return;
-  }
-
-  const store = getGlobalStore();
-  store.unsubscribe(key, callback);
+  getStore().unsubscribe(key, callback);
 }
 
 /**
  * 清空所有数据
  */
 export function clearStore(): void {
-  // 优先使用 window.globalStore
-  if (typeof window !== 'undefined' && (window as any).globalStore) {
-    (window as any).globalStore.clear();
-    return;
-  }
-
-  const store = getGlobalStore();
-  store.clear();
+  getStore().clear();
 }
 
-/**
- * React Hook - 使用存储值
- */
-export function useStoreValue<T = any>(
-  key: string
-): [T | undefined, (value: T) => void] {
-  // 这里需要 React，但为了保持简单，我们先提供基础版本
-  // 在实际使用时，可以根据需要添加 React hooks
-  const getValue = () => getStoreValue<T>(key);
-  const setValue = (value: T) => setStoreValue(key, value);
-
-  return [getValue(), setValue];
-}
+// React Hooks 从单独文件导出
+export { useStoreValue, useStoreSubscription } from './hooks';
 
 // 导出类型
 export * from './types';
@@ -152,7 +111,6 @@ export default {
   subscribe: subscribeStore,
   unsubscribe: unsubscribeStore,
   clear: clearStore,
-  useValue: useStoreValue,
   configureStrategy: configureStoreStrategy,
   clearAppData: clearAppData,
 };

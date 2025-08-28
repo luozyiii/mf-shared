@@ -19,13 +19,12 @@
     "build:storybook": "storybook build",
     "dev": "rsbuild dev",
     "storybook": "storybook dev -p 6006",
-    "mf-dev": "rsbuild dev",
     "lint": "biome lint src/",
     "lint:fix": "biome check --write src/",
     "format": "biome format --write src/",
     "format:check": "biome format src/",
     "type-check": "tsc --noEmit",
-    "code-quality": "npm run lint && npm run format:check && npm run type-check",
+    "code-quality": "pnpm run lint && pnpm run format:check && pnpm run type-check",
     "prepare": "husky"
   },
   "lint-staged": {

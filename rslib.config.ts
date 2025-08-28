@@ -1,7 +1,7 @@
 import { pluginReact } from '@rsbuild/plugin-react';
 import { defineConfig } from '@rslib/core';
 import { pluginModuleFederation } from '@module-federation/rsbuild-plugin';
-import moduleFederationConfig from './module-federation.config';
+import { createMfConfig } from './module-federation.config';
 import pkg from './package.json';
 
 const shared = {
@@ -51,5 +51,13 @@ export default defineConfig({
   server: {
     port: 2999,
   },
-  plugins: [pluginReact(), pluginModuleFederation(moduleFederationConfig)],
+  plugins: [
+    pluginReact(),
+    pluginModuleFederation(createMfConfig({
+      filename: 'remoteEntry.js',
+      assetPrefix: process.env.NODE_ENV === 'production'
+        ? `https://unpkg.com/${pkg.name}@latest/dist/mf/`
+        : undefined,
+    }))
+  ],
 });
