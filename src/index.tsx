@@ -9,11 +9,7 @@ const Provider: React.FC = () => {
   return (
     <div className="container">
       <div className="icon-container">
-        <img
-          src="https://module-federation.io/svg.svg"
-          alt="logo"
-          className="logo-image"
-        />
+        <img src="https://module-federation.io/svg.svg" alt="logo" className="logo-image" />
       </div>
       <h1 className="title">MF-Shared 共享模块</h1>
       <div className="description">
@@ -25,10 +21,7 @@ const Provider: React.FC = () => {
           <li>🔄 跨应用数据同步</li>
           <li>📡 事件订阅机制</li>
         </ul>
-        <p>
-          此模块通过 Module Federation 2.0 技术，
-          可以被其他微前端应用动态加载和使用。
-        </p>
+        <p>此模块通过 Module Federation 2.0 技术， 可以被其他微前端应用动态加载和使用。</p>
         <div className="links">
           <a
             href="https://github.com/luozyiii/micro-frontend-app"
@@ -37,11 +30,7 @@ const Provider: React.FC = () => {
           >
             📚 查看源码
           </a>
-          <a
-            href="https://luozyiii.github.io/mf-shell/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <a href="https://luozyiii.github.io/mf-shell/" target="_blank" rel="noopener noreferrer">
             🚀 主应用演示
           </a>
         </div>

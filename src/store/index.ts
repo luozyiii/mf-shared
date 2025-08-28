@@ -29,10 +29,7 @@ export function initGlobalStore(options?: StoreOptions): void {
 }
 
 /** 配置存储策略（按 key 或前缀） */
-export function configureStoreStrategy(
-  keyOrPrefix: string,
-  strategy: StorageStrategy
-): void {
+export function configureStoreStrategy(keyOrPrefix: string, strategy: StorageStrategy): void {
   getStore().configureStrategy(keyOrPrefix, strategy);
 }
 
@@ -64,21 +61,14 @@ export function getStoreValue<T = any>(key: string): T | undefined {
  * 设置存储的值
  * 支持嵌套路径，如 'userinfo.name'
  */
-export function setStoreValue(
-  key: string,
-  value: any,
-  callback?: StoreSubscriber
-): void {
+export function setStoreValue(key: string, value: any, callback?: StoreSubscriber): void {
   getStore().set(key, value, callback);
 }
 
 /**
  * 订阅数据变化
  */
-export function subscribeStore(
-  key: string,
-  callback: StoreSubscriber
-): () => void {
+export function subscribeStore(key: string, callback: StoreSubscriber): () => void {
   return getStore().subscribe(key, callback);
 }
 

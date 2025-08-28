@@ -183,9 +183,7 @@ class PersistenceManager {
         return;
       }
 
-      const serialized = strategy.encrypted
-        ? encryptObject(value)
-        : JSON.stringify(value);
+      const serialized = strategy.encrypted ? encryptObject(value) : JSON.stringify(value);
       if (strategy.medium === 'local') {
         localStorage.setItem(itemKey, serialized);
       } else if (strategy.medium === 'session') {
@@ -230,9 +228,7 @@ class PersistenceManager {
     try {
       const stored = localStorage.getItem(this.options.storageKey);
       if (stored) {
-        return this.options.enableEncryption
-          ? decryptObject(stored)
-          : JSON.parse(stored);
+        return this.options.enableEncryption ? decryptObject(stored) : JSON.parse(stored);
       }
     } catch (error) {
       console.error('Failed to load data from storage:', error);
@@ -284,9 +280,7 @@ class SyncManager {
   init(onMessage: (msg: any) => void): void {
     try {
       if (typeof BroadcastChannel !== 'undefined') {
-        this.channel = new BroadcastChannel(
-          this.options.storageKey || 'mf-shell-store'
-        );
+        this.channel = new BroadcastChannel(this.options.storageKey || 'mf-shell-store');
         this.channel.onmessage = (ev: MessageEvent) => {
           onMessage(ev.data);
         };
@@ -371,12 +365,7 @@ class GlobalStore implements GlobalStoreInterface {
       if (this.options.enablePersistence) {
         this.persistenceManager.saveToStorage(this.storageCore.getData());
       }
-      this.subscriptionManager.notify(
-        msg.key,
-        msg.value,
-        oldValue,
-        this.storageCore
-      );
+      this.subscriptionManager.notify(msg.key, msg.value, oldValue, this.storageCore);
     } else if (msg?.type === 'clearAppData' && msg.appStorageKey) {
       const isCurrentApp = msg.appStorageKey === this.options.storageKey;
       if (isCurrentApp) {
@@ -391,8 +380,7 @@ class GlobalStore implements GlobalStoreInterface {
   private setupStorageListener(): void {
     if (typeof window !== 'undefined') {
       window.addEventListener('storage', (e: StorageEvent) => {
-        if (!e.key || e.key !== (this.options.storageKey || 'mf-shell-store'))
-          return;
+        if (!e.key || e.key !== (this.options.storageKey || 'mf-shell-store')) return;
         try {
           const incoming = this.options.enableEncryption
             ? decryptObject(e.newValue || '')
@@ -456,13 +444,7 @@ class GlobalStore implements GlobalStoreInterface {
     this.syncManager.broadcast({ type: 'set', key, value });
 
     // 通知订阅者（包括传入的回调）
-    this.subscriptionManager.notify(
-      key,
-      value,
-      oldValue,
-      this.storageCore,
-      callback
-    );
+    this.subscriptionManager.notify(key, value, oldValue, this.storageCore, callback);
   }
 
   /**

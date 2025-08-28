@@ -4,11 +4,7 @@ export interface StoreData {
   [key: string]: any;
 }
 
-export type StoreSubscriber = (
-  key: string,
-  newValue: any,
-  oldValue: any
-) => void;
+export type StoreSubscriber = (key: string, newValue: any, oldValue: any) => void;
 
 export interface StoreOptions {
   enablePersistence?: boolean; // 传统：将整份数据加密后写入 storageKey
